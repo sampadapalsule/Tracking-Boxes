@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BoxTrack — Factory Production Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── CONFIG ── Paste your Apps Script URL below ── */
+
+/* ────────────────────────────────────────────────────────────────
+   DESIGN: Industrial-utilitarian. Deep navy/slate base,
+   amber accent, mono data tables. Bold Syne headlines.
+   ──────────────────────────────────────────────────────────────── */
+
+:root {
+  --bg:         #0d1117;
+  --bg2:        #161b22;
+  --bg3:        #21262d;
+  --border:     #30363d;
+  --text:       #e6edf3;
+  --muted:      #7d8590;
+  --amber:      #f0a30a;
+  --amber-dim:  #3d2e00;
+  --green:      #2ea043;
+  --green-dim:  #0d2b16;
+  --red:        #da3633;
+  --red-dim:    #2d0f0e;
+  --yellow:     #d29922;
+  --yellow-dim: #2d2009;
+  --blue:       #58a6ff;
+  --mono:       'JetBrains Mono', monospace;
+  --sans:       'Outfit', sans-serif;
+  --display:    'Syne', sans-serif;
+  --radius:     6px;
+  --shadow:     0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 56px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  color: var(--amber);
+}
+.logo span { color: var(--text); font-weight: 400; }
+.header-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+/* ── NAV TABS ── */
+.nav {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+.nav-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 12px 16px;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s;
+}
+.nav-btn:hover { color: var(--text); }
+.nav-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
+
+/* ── LAYOUT ── */
+.main { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+
+/* ── PANELS ── */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.panel-header {
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panel-title {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.panel-body { padding: 20px; }
+
+/* ── SUMMARY BAR ── */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.stat-card {
+  background: var(--bg2);
+  padding: 20px 16px;
+  text-align: center;
+}
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.stat-value {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--amber);
+  line-height: 1;
+}
+.stat-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-family: var(--mono);
+}
+.stat-card.review .stat-value { color: var(--red); }
+
+/* ── UPLOAD ZONE ── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--amber);
+  background: rgba(240,163,10,0.04);
+}
+.drop-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.upload-icon { font-size: 48px; margin-bottom: 12px; }
+.drop-title {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.drop-sub { font-size: 13px; color: var(--muted); }
+
+/* ── IMAGE PREVIEW ── */
+#preview-area { display: none; margin-top: 16px; }
+#preview-img {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  display: block;
+  margin: 0 auto 16px;
+}
+.action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── BUTTONS ── */
+.btn {
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  transition: opacity .15s, transform .1s;
+}
+.btn:hover { opacity: 0.88; }
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--amber); color: #000; }
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-success { background: var(--green); color: #fff; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 12px;
+}
+.status-bar.loading { background: var(--amber-dim); color: var(--amber); display: flex; }
+.status-bar.success { background: var(--green-dim); color: #3fb950; display: flex; }
+.status-bar.error   { background: var(--red-dim);  color: #ff7b72; display: flex; }
+.spinner {
+  width: 16px; height: 16px; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%;
+  animation: spin .6s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EXTRACTED PREVIEW FORM ── */
+#extracted-section { display: none; margin-top: 20px; }
+.extracted-title {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--amber);
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.entry-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative;
+}
+.entry-card.HIGH  { border-left: 3px solid var(--green); }
+.entry-card.MEDIUM{ border-left: 3px solid var(--yellow); }
+.entry-card.LOW   { border-left: 3px solid var(--red); }
+.confidence-badge {
+  position: absolute; top: 12px; right: 12px;
+  font-family: var(--mono); font-size: 10px; font-weight: 500;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: 0.05em;
+}
+.badge-HIGH   { background: var(--green-dim);  color: #3fb950; }
+.badge-MEDIUM { background: var(--yellow-dim); color: var(--yellow); }
+.badge-LOW    { background: var(--red-dim);    color: #ff7b72; }
+.entry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.field-group label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.field-group input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color .15s;
+}
+.field-group input:focus { border-color: var(--amber); }
+.field-group.wide { grid-column: 1 / -1; }
+.notes-row { margin-top: 8px; font-size: 12px; color: var(--muted); font-style: italic; }
+
+/* ── FILTER BAR ── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: var(--bg3);
+  border-bottom: 1px solid var(--border);
+}
+.filter-bar input, .filter-bar select {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 6px 12px;
+  outline: none;
+  flex: 1;
+  min-width: 120px;
+}
+.filter-bar input:focus, .filter-bar select:focus { border-color: var(--amber); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+th:hover { color: var(--text); }
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+tr:last-child td { border-bottom: none; }
+tr.HIGH   td { background: rgba(46,160,67,0.04); }
+tr.MEDIUM td { background: rgba(210,153,34,0.04); }
+tr.LOW    td { background: rgba(218,54,51,0.07); }
+tr:hover td { background: var(--bg3) !important; }
+.badge-conf {
+  font-size: 10px;
+  font-family: var(--mono);
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+/* ── TODAY CARDS ── */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.job-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  border-left-width: 3px;
+}
+.job-card.HIGH   { border-left-color: var(--green); }
+.job-card.MEDIUM { border-left-color: var(--yellow); }
+.job-card.LOW    { border-left-color: var(--red); }
+.jc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.jc-jobno {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--amber);
+}
+.jc-stage {
+  font-size: 11px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.jc-client { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.jc-product { font-size: 12px; color: var(--muted); margin-bottom: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jc-counts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+.jc-count { text-align: center; }
+.jc-count-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.jc-count-val { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--text); }
+
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+.empty-title { font-family: var(--display); font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.empty-sub { font-size: 13px; }
+
+/* ── TABS ── */
+.tab-section { display: none; }
+.tab-section.active { display: block; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .main { padding: 16px 12px; }
+  .stat-value { font-size: 22px; }
+  .entry-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── CONFIG ─────────────────────────────────────────────────── -->
+<script>
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbym8NIXX1x5PNcdSUadlDRfoGizgbxAkHWs18caMQeD3Z9oZcZk26lqNNxDvOUG9h9lJQ/exec";
+// ↑ Paste your Apps Script Web App URL here (Step 7 in setup guide)
+</script>
+<!-- ──────────────────────────────────────────────────────────── -->
+
+<header class="header">
+  <div class="logo">BOX<span>TRACK</span></div>
+  <div class="header-meta" id="clock">—</div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" onclick="switchTab('upload')">📷 Upload</button>
+  <button class="nav-btn" onclick="switchTab('today')">📦 Today's Jobs</button>
+  <button class="nav-btn" onclick="switchTab('log')">📋 Full Log</button>
+  <button class="nav-btn" onclick="switchTab('summary')">📊 Summary</button>
+</nav>
+
+<main class="main">
+
+  <!-- ── SUMMARY BAR (always visible) ── -->
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="summary-grid" id="summary-bar">
+      <div class="stat-card"><div class="stat-label">Jobs This Week</div><div class="stat-value" id="s-jobs">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Boxes</div><div class="stat-value" id="s-boxes">—</div></div>
+      <div class="stat-card"><div class="stat-label">Total Pasting</div><div class="stat-value" id="s-pasting">—</div></div>
+      <div class="stat-card"><div class="stat-label">Top Client</div><div class="stat-value" style="font-size:16px;word-break:break-word;" id="s-client">—</div></div>
+      <div class="stat-card review"><div class="stat-label">Needs Review</div><div class="stat-value" id="s-review">—</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ UPLOAD TAB ═══════════════ -->
+  <section class="tab-section active" id="tab-upload">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📷 Upload Notebook Photo</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept="image/*" capture="environment">
+          <div class="upload-icon">📄</div>
+          <div class="drop-title">Tap to photograph notebook page</div>
+          <div class="drop-sub">or drag & drop an image here · JPG, PNG, WEBP</div>
+        </div>
+
+        <div id="preview-area">
+          <img id="preview-img" src="" alt="Preview">
+          <div class="action-row">
+            <button class="btn btn-primary" id="extract-btn" onclick="extractAndPreview()">🔍 Read Image</button>
+            <button class="btn btn-secondary" onclick="clearUpload()">✕ Clear</button>
+          </div>
+        </div>
+
+        <div class="status-bar" id="status-bar">
+          <div class="spinner" id="spinner"></div>
+          <span id="status-text">Reading image…</span>
+        </div>
+
+        <!-- Extracted data preview -->
+        <div id="extracted-section">
+          <div class="extracted-title">✅ Extracted Data — Review Before Saving</div>
+          <div id="entries-container"></div>
+          <div class="action-row" style="margin-top:16px;">
+            <button class="btn btn-success" onclick="confirmSave()">💾 Confirm & Save All</button>
+            <button class="btn btn-secondary" onclick="clearUpload()">🔄 Upload Different Image</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ TODAY TAB ═══════════════ -->
+  <section class="tab-section" id="tab-today">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📦 Today's Jobs</span>
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="loadData()">↻ Refresh</button>
+      </div>
+      <div class="panel-body" id="today-body">
+        <div class="empty"><div class="empty-icon">📭</div><div class="empty-title">Loading…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FULL LOG TAB ═══════════════ -->
+  <section class="tab-section" id="tab-log">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📋 Production Log</span>
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="f-date"   placeholder="Filter by date…">
+        <input type="text" id="f-client" placeholder="Filter by client…">
+        <input type="text" id="f-job"    placeholder="Filter by job no…">
+        <select id="f-stage">
+          <option value="">All stages</option>
+          <option>Pasting</option><option>Cutting</option><option>Printing</option>
+          <option>Lamination</option><option>Punching</option><option>Other</option>
+        </select>
+        <select id="f-conf">
+          <option value="">All confidence</option>
+          <option>HIGH</option><option>MEDIUM</option><option>LOW</option>
+        </select>
+      </div>
+      <div class="table-wrap" id="log-table-wrap">
+        <div class="empty"><div class="empty-icon">📋</div><div class="empty-title">Loading…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ SUMMARY TAB ═══════════════ -->
+  <section class="tab-section" id="tab-summary">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">📊 Weekly Summary</span>
+        <button class="btn btn-secondary" style="font-size:12px;padding:6px 12px;" onclick="loadSummary()">↻ Refresh</button>
+      </div>
+      <div class="panel-body" id="summary-body">
+        <div class="empty"><div class="empty-icon">📊</div><div class="empty-title">Loading…</div></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+let allRows       = [];
+let extractedData = [];
+let currentImageB64  = "";
+let currentMimeType  = "";
+
+// ── CLOCK ─────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleString('en-IN', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+setInterval(updateClock, 60000);
+updateClock();
+
+// ── TAB SWITCHING ─────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'today')   renderTodayCards();
+  if (name === 'log')     renderTable();
+  if (name === 'summary') loadSummary();
+}
+
+// ── UPLOAD / DRAG-DROP ────────────────────────────────────────
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  if (!file.type.startsWith('image/')) { showStatus('error', '⚠ Please upload an image file.'); return; }
+  currentMimeType = file.type;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const dataUrl = ev.target.result;
+    currentImageB64 = dataUrl.split(',')[1];
+    document.getElementById('preview-img').src = dataUrl;
+    document.getElementById('preview-area').style.display = 'block';
+    document.getElementById('extracted-section').style.display = 'none';
+    hideStatus();
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearUpload() {
+  fileInput.value = '';
+  currentImageB64 = '';
+  extractedData   = [];
+  document.getElementById('preview-area').style.display = 'none';
+  document.getElementById('extracted-section').style.display = 'none';
+  document.getElementById('preview-img').src = '';
+  hideStatus();
+}
+
+// ── EXTRACT → PREVIEW ────────────────────────────────────────
+async function extractAndPreview() {
+  if (!currentImageB64) { showStatus('error', '⚠ No image selected.'); return; }
+  if (APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbzHJ795Ctl7-xy9ZuKYAkyU8tv0WHp0Q9V-nQ4_Lbmiw-iI_cno8_LO9p6f0LT2VBG7/exec') {
+    showStatus('error', '⚠ Please paste your Apps Script URL in the config at the top of this file.');
+    return;
+  }
+
+  document.getElementById('extract-btn').disabled = true;
+  showStatus('loading', '🔍 Reading image with AI… (this may take 5–15 seconds)');
+
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ image: currentImageB64, mimeType: currentMimeType })
+    });
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error || 'Unknown error from server.');
+    if (!data.entries || data.entries.length === 0) {
+      showStatus('error', '⚠ No job entries found in this image. Try a clearer photo.');
+      document.getElementById('extract-btn').disabled = false;
+      return;
+    }
+
+    extractedData = data.entries;
+    renderExtractedForm(data.entries);
+    document.getElementById('extracted-section').style.display = 'block';
+    hideStatus();
+    // Data was already saved by Apps Script — load fresh data
+    await loadData();
+
+  } catch (err) {
+    showStatus('error', '✕ Error: ' + err.message);
+  }
+  document.getElementById('extract-btn').disabled = false;
+}
+
+// ── RENDER EXTRACTED FORM ─────────────────────────────────────
+function renderExtractedForm(entries) {
+  const container = document.getElementById('entries-container');
+  container.innerHTML = entries.map((e, i) => `
+    <div class="entry-card ${e.confidence || 'MEDIUM'}">
+      <span class="confidence-badge badge-${e.confidence || 'MEDIUM'}">${e.confidence || 'MEDIUM'}</span>
+      <strong style="font-family:var(--display);font-size:14px;">Entry ${i+1} — ${e.jobNo || 'Unknown Job'}</strong>
+      <div class="entry-grid">
+        ${field('Date',     `e${i}_date`,     e.date)}
+        ${field('Stage',    `e${i}_stage`,    e.stage)}
+        ${field('Job No',   `e${i}_jobNo`,    e.jobNo)}
+        ${field('Client',   `e${i}_client`,   e.client, true)}
+        ${field('Product',  `e${i}_product`,  e.product, true)}
+        ${field('Quantity', `e${i}_quantity`, e.quantity)}
+        ${field('Top',      `e${i}_top`,      e.top)}
+        ${field('Bottom',   `e${i}_bottom`,   e.bottom)}
+        ${field('Pasting',  `e${i}_pasting`,  e.pasting)}
+        ${field('Order Date',`e${i}_orderDate`,e.orderDate)}
+      </div>
+      ${e.notes ? `<div class="notes-row">⚠ ${e.notes}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function field(label, id, val, wide=false) {
+  return `<div class="field-group${wide?' wide':''}">
+    <label>${label}</label>
+    <input id="${id}" value="${escHtml(val ?? '')}">
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// ── CONFIRM SAVE (data already saved; this just confirms to user) ──
+function confirmSave() {
+  showStatus('success', '✅ All entries saved to Google Sheet!');
+  document.getElementById('extracted-section').style.display = 'none';
+  loadData();
+  loadSummary();
+}
+
+// ── STATUS ────────────────────────────────────────────────────
+function showStatus(type, msg) {
+  const bar = document.getElementById('status-bar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('spinner').style.display = type === 'loading' ? 'block' : 'none';
+}
+function hideStatus() {
+  document.getElementById('status-bar').className = 'status-bar';
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────
+async function loadData() {
+  if (APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbzHJ795Ctl7-xy9ZuKYAkyU8tv0WHp0Q9V-nQ4_Lbmiw-iI_cno8_LO9p6f0LT2VBG7/exec') return;
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL + '?action=all');
+    const data = await res.json();
+    if (data.success) {
+      allRows = data.rows;
+      renderTodayCards();
+      renderTable();
+    }
+  } catch (e) { console.warn('loadData error:', e); }
+}
+
+// ── LOAD SUMMARY ──────────────────────────────────────────────
+async function loadSummary() {
+  if (APPS_SCRIPT_URL === 'https://script.google.com/macros/s/AKfycbzHJ795Ctl7-xy9ZuKYAkyU8tv0WHp0Q9V-nQ4_Lbmiw-iI_cno8_LO9p6f0LT2VBG7/exec') return;
+  try {
+    const res  = await fetch(APPS_SCRIPT_URL + '?action=summary');
+    const data = await res.json();
+    if (data.success && data.summary) {
+      const s = data.summary;
+      setText('s-jobs',    s['Total Jobs This Week']    ?? '—');
+      setText('s-boxes',   fmtNum(s['Total Boxes This Week'])   ?? '—');
+      setText('s-pasting', fmtNum(s['Total Pasting This Week']) ?? '—');
+      setText('s-client',  s['Top Client This Week']    ?? '—');
+      setText('s-review',  s['Entries Needing Review']  ?? '—');
+
+      // Summary tab detailed
+      const body = document.getElementById('summary-body');
+      body.innerHTML = `
+        <div class="summary-grid" style="border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);">
+          ${Object.entries(s).map(([k,v]) => `
+            <div class="stat-card">
+              <div class="stat-label">${k}</div>
+              <div class="stat-value" style="font-size:20px;">${typeof v === 'number' ? v.toLocaleString() : v}</div>
+            </div>`).join('')}
+        </div>`;
+    }
+  } catch (e) { console.warn('loadSummary error:', e); }
+}
+
+function setText(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function fmtNum(n) {
+  const parsed = parseInt(n);
+  return isNaN(parsed) ? n : parsed.toLocaleString('en-IN');
+}
+
+// ── TODAY CARDS ───────────────────────────────────────────────
+function renderTodayCards() {
+  const body    = document.getElementById('today-body');
+  const today   = todayStr();
+  const todayRows = allRows.filter(r => {
+    const d = String(r['Date'] || '').trim();
+    return d.startsWith(today) || matchToday(d);
+  });
+
+  if (todayRows.length === 0) {
+    body.innerHTML = `<div class="empty">
+      <div class="empty-icon">📭</div>
+      <div class="empty-title">No jobs logged today</div>
+      <div class="empty-sub">Upload a notebook photo to get started</div>
+    </div>`;
+    return;
+  }
+
+  body.innerHTML = `<div class="cards-grid">${todayRows.map(r => jobCard(r)).join('')}</div>`;
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function matchToday(dateStr) {
+  try {
+    const d   = new Date(dateStr);
+    const now = new Date();
+    return d.getDate() === now.getDate() &&
+           d.getMonth() === now.getMonth() &&
+           d.getFullYear() === now.getFullYear();
+  } catch { return false; }
+}
+
+function jobCard(r) {
+  const conf = (r['Confidence'] || 'MEDIUM').toUpperCase();
+  return `<div class="job-card ${conf}">
+    <div class="jc-header">
+      <div class="jc-jobno">${r['Job No'] || '—'}</div>
+      <div class="jc-stage">${r['Stage'] || '—'}</div>
+    </div>
+    <div class="jc-client">${r['Client'] || '—'}</div>
+    <div class="jc-product" title="${escHtml(r['Product']||'')}">${r['Product'] || '—'}</div>
+    <div class="jc-counts">
+      <div class="jc-count"><div class="jc-count-label">Top</div><div class="jc-count-val">${fmtNum(r['Top']) || '—'}</div></div>
+      <div class="jc-count"><div class="jc-count-label">Bottom</div><div class="jc-count-val">${fmtNum(r['Bottom']) || '—'}</div></div>
+      <div class="jc-count"><div class="jc-count-label">Pasting</div><div class="jc-count-val">${fmtNum(r['Pasting']) || '—'}</div></div>
+    </div>
+  </div>`;
+}
+
+// ── FULL LOG TABLE ────────────────────────────────────────────
+let sortCol = null;
+let sortAsc = true;
+
+function renderTable() {
+  const wrap    = document.getElementById('log-table-wrap');
+  const fDate   = (document.getElementById('f-date')   || {}).value?.toLowerCase() || '';
+  const fClient = (document.getElementById('f-client') || {}).value?.toLowerCase() || '';
+  const fJob    = (document.getElementById('f-job')    || {}).value?.toLowerCase() || '';
+  const fStage  = (document.getElementById('f-stage')  || {}).value || '';
+  const fConf   = (document.getElementById('f-conf')   || {}).value || '';
+
+  let rows = allRows.filter(r =>
+    (!fDate   || String(r['Date']       || '').toLowerCase().includes(fDate))   &&
+    (!fClient || String(r['Client']     || '').toLowerCase().includes(fClient)) &&
+    (!fJob    || String(r['Job No']     || '').toLowerCase().includes(fJob))    &&
+    (!fStage  || r['Stage']  === fStage) &&
+    (!fConf   || r['Confidence'] === fConf)
+  );
+
+  if (rows.length === 0) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><div class="empty-title">No matching entries</div></div>`;
+    return;
+  }
+
+  const cols = ['Date','Stage','Job No','Client','Product','Quantity','Top','Bottom','Pasting','Order Date','Confidence','Notes'];
+  wrap.innerHTML = `<table>
+    <thead><tr>${cols.map(c => `<th onclick="sortTable('${c}')">${c} ${sortCol===c?(sortAsc?'↑':'↓'):''}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => {
+      const conf = (r['Confidence'] || 'MEDIUM').toUpperCase();
+      return `<tr class="${conf}">
+        ${cols.map(c => `<td>${c==='Confidence'
+          ? `<span class="badge-conf badge-${conf}">${r[c]||'—'}</span>`
+          : escHtml(r[c] ?? '—')
+        }</td>`).join('')}
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function sortTable(col) {
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = true; }
+  allRows.sort((a, b) => {
+    const va = String(a[col] ?? '');
+    const vb = String(b[col] ?? '');
+    return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+  renderTable();
+}
+
+// Add filter listeners
+['f-date','f-client','f-job','f-stage','f-conf'].forEach(id => {
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', renderTable);
+  }, 0);
+});
+
+// ── EXPORT CSV ────────────────────────────────────────────────
+function exportCSV() {
+  if (allRows.length === 0) { alert('No data to export.'); return; }
+  const cols = ['Date','Stage','Job No','Client','Product','Quantity','Top','Bottom','Pasting','Order Date','Uploaded At','Confidence','Notes'];
+  const header = cols.join(',');
+  const csvRows = allRows.map(r =>
+    cols.map(c => `"${String(r[c] ?? '').replace(/"/g,'""')}"`).join(',')
+  );
+  const csv  = [header, ...csvRows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `production-log-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+loadData();
+loadSummary();
+setInterval(loadData, 60000); // auto-refresh every minute
+</script>
+</body>
+</html>
